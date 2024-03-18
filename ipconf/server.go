@@ -8,6 +8,6 @@ import (
 func Start(path string) {
 	config.Init(path)
 	s := server.Default(server.WithHostPorts(":" + config.Get("port")))
-	s.GET("/ip/list", getEndpoints)
+	s.GET("/ip/list", GetEndpoints)
 	s.Spin()
 }

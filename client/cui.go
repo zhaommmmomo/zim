@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/gookit/color"
 	"github.com/rocket049/gocui"
-	"github.com/zhaommmmomo/zim/common/sdk"
 	"log"
 )
 
@@ -103,7 +102,6 @@ func updateInput(g *gocui.Gui, cv *gocui.View) error {
 			v.Autoscroll = true
 			v.Write([]byte("你:"))
 			v.Write(append(p, '\n'))
-			sdk.Send(sdk.Message{Content: p})
 		}
 	}
 	l := len(cv.Buffer())
@@ -120,7 +118,6 @@ func updateOutput(g *gocui.Gui, cv *gocui.View) error {
 			v.Autoscroll = true
 			v.Write([]byte("你:"))
 			v.Write(append(p, '\n'))
-			sdk.Send(sdk.Message{Content: p})
 		}
 	}
 	l := len(cv.Buffer())

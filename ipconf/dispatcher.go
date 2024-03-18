@@ -8,7 +8,7 @@ import (
 	"github.com/zhaommmmomo/zim/common/domain"
 )
 
-func getEndpoints(context context.Context, appCtx *app.RequestContext) {
+func GetEndpoints(context context.Context, appCtx *app.RequestContext) {
 	defer func() {
 		if err := recover(); err != nil {
 			appCtx.JSON(consts.StatusBadRequest, utils.H{"err": err})
