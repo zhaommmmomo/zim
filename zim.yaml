@@ -1,4 +1,6 @@
 env: dev
+log:
+  path: /root/zim/logs
 ip_conf:
   port: 8001
 gateway:

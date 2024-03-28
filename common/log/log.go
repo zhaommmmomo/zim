@@ -41,7 +41,7 @@ func initEncoder() zapcore.Encoder {
 
 func initWriteSyncer() zapcore.WriteSyncer {
 	ws := zapcore.NewMultiWriteSyncer(zapcore.AddSync(&lumberjack.Logger{
-		Filename: "../../logs/zim.log",
+		Filename: config.GetLogPath() + "/zim.log",
 	}), zapcore.AddSync(os.Stderr))
 	return ws
 }

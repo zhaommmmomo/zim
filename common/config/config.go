@@ -9,6 +9,7 @@ const (
 	ENV      = "env"
 	ENV_DEV  = "dev"
 	ENV_PROD = "prod"
+	LOG_PATH = "log.path"
 )
 
 func Init(path string) {
@@ -19,6 +20,10 @@ func Init(path string) {
 		panic(fmt.Errorf("load config {%s} fail: %w", path, err))
 	}
 	viper.WatchConfig()
+}
+
+func GetLogPath() string {
+	return viper.GetString(LOG_PATH)
 }
 
 func Get(key string) string {
