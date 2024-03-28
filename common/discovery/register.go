@@ -3,11 +3,12 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"github.com/bytedance/gopkg/util/logger"
 	"github.com/zhaommmmomo/zim/common/config"
 	"github.com/zhaommmmomo/zim/common/domain"
+	"github.com/zhaommmmomo/zim/common/log"
 	"github.com/zhaommmmomo/zim/common/utils"
 	etcdClient "go.etcd.io/etcd/client/v3"
+	"go.uber.org/zap"
 	"strconv"
 	"strings"
 )
@@ -22,7 +23,7 @@ type ServiceRegister struct {
 }
 
 func init() {
-	config.SetDefault(config.ETCD_LEASE_TTL, 5)
+	config.SetDefault(config.EtcdLeaseTtl, 5)
 }
 
 func NewServiceRegister(ctx *context.Context, endpoint *domain.Endpoint) (*ServiceRegister, error) {
@@ -60,7 +61,8 @@ func (register *ServiceRegister) lease() error {
 	if err != nil {
 		return err
 	}
-	logger.CtxInfof(*register.ctx, "ServiceRegister new lease. leaseId=%d key=%s value=%s", register.leaseId, register.key, register.value)
+	log.Info("ServiceRegister new lease.", zap.Int64("leaseId", int64(register.leaseId)),
+		zap.String("key", register.key), zap.String("value", register.value))
 	// 保持租约
 	keepAliveChan, err := register.client.KeepAlive(*register.ctx, lease.ID)
 	if err != nil {
@@ -76,10 +78,12 @@ func (register *ServiceRegister) UpdateRegisterValue(endpoint *domain.Endpoint) 
 	value := utils.Marshal(endpoint)
 	_, err := register.client.Put(*register.ctx, register.key, value, etcdClient.WithLease(register.leaseId))
 	if err != nil {
-		logger.CtxWarnf(*register.ctx, "ServiceRegister update endpoint value fail. leaseId=%d key=%s value=%s", register.leaseId, register.key, value)
+		log.Warn("ServiceRegister update endpoint value fail.", zap.Int64("leaseId", int64(register.leaseId)),
+			zap.String("key", register.key), zap.String("value", register.value))
 		return err
 	}
-	logger.CtxInfof(*register.ctx, "ServiceRegister update endpoint value success. leaseId=%d key=%s value=%s", register.leaseId, register.key, value)
+	log.Info("ServiceRegister update endpoint value success.", zap.Int64("leaseId", int64(register.leaseId)),
+		zap.String("key", register.key), zap.String("value", register.value))
 	register.value = value
 	return nil
 }
@@ -87,10 +91,12 @@ func (register *ServiceRegister) UpdateRegisterValue(endpoint *domain.Endpoint) 
 func (register *ServiceRegister) DelRegisterValue() error {
 	_, err := register.client.Delete(*register.ctx, register.key, etcdClient.WithLease(register.leaseId))
 	if err != nil {
-		logger.CtxWarnf(*register.ctx, "ServiceRegister del endpoint fail. leaseId=%d key=%s", register.leaseId, register.key)
+		log.Warn("ServiceRegister del endpoint fail.", zap.Int64("leaseId", int64(register.leaseId)),
+			zap.String("key", register.key))
 		return err
 	}
-	logger.CtxInfof(*register.ctx, "ServiceRegister del endpoint success. leaseId=%d key=%s", register.leaseId, register.key)
+	log.Info("ServiceRegister del endpoint success.", zap.Int64("leaseId", int64(register.leaseId)),
+		zap.String("key", register.key))
 	register.key = ""
 	register.value = ""
 	register.leaseId = -1

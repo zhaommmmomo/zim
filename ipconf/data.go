@@ -2,11 +2,12 @@ package ipconf
 
 import (
 	"context"
-	"github.com/bytedance/gopkg/util/logger"
 	"github.com/zhaommmmomo/zim/common/discovery"
 	"github.com/zhaommmmomo/zim/common/domain"
+	"github.com/zhaommmmomo/zim/common/log"
 	"github.com/zhaommmmomo/zim/common/utils"
 	"go.etcd.io/etcd/api/v3/mvccpb"
+	"go.uber.org/zap"
 	"sync"
 )
 
@@ -44,7 +45,7 @@ func initGateways(ctx *context.Context, endpoints []*domain.Endpoint) {
 		}
 		endpointData.EndpointMap[key] = *state
 	}
-	logger.CtxInfof(*ctx, "current endpoint data=%s", utils.Marshal(endpointData))
+	log.Info("init gateways", zap.String("current endpoint data", utils.Marshal(endpointData)))
 }
 
 func startWatch(d *discovery.ServiceDiscovery) {
@@ -54,35 +55,35 @@ func startWatch(d *discovery.ServiceDiscovery) {
 		for _, event := range resp.Events {
 			switch event.Type {
 			case mvccpb.PUT:
-				updateEndpointData(d.Ctx, event.Kv)
+				updateEndpointData(event.Kv)
 			case mvccpb.DELETE:
-				delEndpointData(d.Ctx, string(event.Kv.Key))
+				delEndpointData(string(event.Kv.Key))
 			}
 		}
 	}
 }
 
-func updateEndpointData(ctx *context.Context, kv *mvccpb.KeyValue) {
+func updateEndpointData(kv *mvccpb.KeyValue) {
 	endpointData.Lock()
 	defer endpointData.Unlock()
 	endpoint := &domain.Endpoint{}
 	if utils.UnMarshal(kv.Value, endpoint) != nil {
-		logger.CtxWarnf(*ctx, "update endpoint data unmarshal endpoint fail. endpoint=%s", string(kv.Value))
+		log.Warn("update endpoint data unmarshal endpoint fail.", zap.String("endpoint", string(kv.Value)))
 		return
 	}
 	state, err := convertState(&endpoint.MetaData)
 	if err != nil {
-		logger.CtxWarnf(*ctx, "update endpoint data convertState fail. endpoint=%s", string(kv.Value))
+		log.Warn("update endpoint data convertState fail.", zap.String("endpoint", string(kv.Value)))
 		return
 	}
 	key := string(kv.Key)
 	endpointData.EndpointMap[string(kv.Key)] = *state
-	logger.CtxInfof(*ctx, "update endpoint data. key=%s value=%s", key, utils.Marshal(endpointData))
+	log.Info("update endpoint data.", zap.String("key", key), zap.String("value", utils.Marshal(endpointData)))
 }
 
-func delEndpointData(ctx *context.Context, key string) {
+func delEndpointData(key string) {
 	endpointData.Lock()
 	defer endpointData.Unlock()
 	delete(endpointData.EndpointMap, key)
-	logger.CtxInfof(*ctx, "del endpoint data. key=%s", key)
+	log.Info("del endpoint data.", zap.String("key", key))
 }

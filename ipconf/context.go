@@ -1,11 +1,11 @@
-package domain
+package ipconf
 
 import (
 	"context"
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
-type Context struct {
+type IpConfContext struct {
 	Ctx       *context.Context
 	AppCtx    *app.RequestContext
 	ClientCtx *ClientContext
@@ -15,8 +15,8 @@ type ClientContext struct {
 	IP string `json:"ip"`
 }
 
-func BuildIpConfContext(c *context.Context, ctx *app.RequestContext) *Context {
-	return &Context{
+func BuildIpConfContext(c *context.Context, ctx *app.RequestContext) *IpConfContext {
+	return &IpConfContext{
 		Ctx:       c,
 		AppCtx:    ctx,
 		ClientCtx: &ClientContext{},

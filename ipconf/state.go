@@ -2,6 +2,7 @@ package ipconf
 
 import (
 	"encoding/json"
+	"github.com/zhaommmmomo/zim/common/utils"
 	"math/rand"
 )
 
@@ -22,7 +23,7 @@ func convertState(m *map[string]interface{}) (*State, error) {
 		return nil, err
 	}
 	state := &State{}
-	err = json.Unmarshal(bytes, state)
+	err = utils.UnMarshal(bytes, state)
 	return state, err
 }
 

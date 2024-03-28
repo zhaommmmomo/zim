@@ -1,6 +1,12 @@
 env: dev
 ip_conf:
-  port: 8888
+  port: 8001
+gateway:
+  port: 8002
+  epoll:
+    num: 2
+    wait-queue:
+      size: 1000
 etcd:
   endpoints:
     - localhost:2379

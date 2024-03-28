@@ -24,7 +24,7 @@ func getGateWayInfo(context context.Context, appCtx *app.RequestContext) {
 		}
 	}()
 	// 构建请求上下文参数
-	_ = domain.BuildIpConfContext(&context, appCtx)
+	_ = BuildIpConfContext(&context, appCtx)
 	// 获取集群中对应的endpoints  按照对应的分数进行排序了
 	gateways := dispatch()
 	// 返回数据
