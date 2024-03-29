@@ -1,10 +1,9 @@
 package gateway
 
 import (
-	"context"
 	"encoding/binary"
+	"fmt"
 	"github.com/zhaommmmomo/zim/common/domain"
-	"github.com/zhaommmmomo/zim/common/log"
 	"io"
 )
 
@@ -20,12 +19,11 @@ func encoder(m *domain.Message) []byte {
 	return buf
 }
 
-func decoder(ctx *context.Context, r io.Reader) (*domain.Message, error) {
+func decoder(r io.Reader) (*domain.Message, error) {
 	// 处理 fixed header
 	fHeaderBuf := make([]byte, 14)
 	if _, err := r.Read(fHeaderBuf); err != nil {
-		log.WarnCtx(ctx, "read fixed header fail", log.Err(err))
-		return nil, err
+		return nil, fmt.Errorf("read fixed header fail: %w", err)
 	}
 	// 处理 var header
 	vHeaderLen := binary.BigEndian.Uint32(fHeaderBuf[2:6])
@@ -33,8 +31,7 @@ func decoder(ctx *context.Context, r io.Reader) (*domain.Message, error) {
 	if vHeaderLen > 0 {
 		vHeader = make([]byte, vHeaderLen)
 		if _, err := r.Read(vHeader); err != nil {
-			log.WarnCtx(ctx, "read var header fail", log.Err(err))
-			return nil, err
+			return nil, fmt.Errorf("read var header fail: %w", err)
 		}
 	}
 	// 处理 payload
@@ -43,8 +40,7 @@ func decoder(ctx *context.Context, r io.Reader) (*domain.Message, error) {
 	if payloadLen > 0 {
 		payload = make([]byte, payloadLen)
 		if _, err := r.Read(payload); err != nil {
-			log.WarnCtx(ctx, "read payload fail", log.Err(err))
-			return nil, err
+			return nil, fmt.Errorf("read payload fail: %w", err)
 		}
 	}
 	return &domain.Message{
