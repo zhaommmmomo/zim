@@ -33,7 +33,7 @@ const (
 	MAX_EPOLL_NUM = 100
 )
 
-func initReactor(ln *net.Listener) (*reactorManager, error) {
+func initReactorManager(ln *net.Listener) (*reactorManager, error) {
 	// 初始化 reactor manager
 	m := &reactorManager{
 		ln: ln,
@@ -111,6 +111,7 @@ func handEvents(ctx *context.Context, events []*epoll.ConnectionEvent, r *reacto
 	for _, event := range events {
 		if event.E.Events&epoll.CloseEvent != 0 {
 			// 如果是连接断开事件
+			doHandleConnCloseEvent(ctx, event.C, r)
 		}
 		if event.E.Events&epoll.ReadEvent != 0 {
 			// 如果是读事件
@@ -119,30 +120,40 @@ func handEvents(ctx *context.Context, events []*epoll.ConnectionEvent, r *reacto
 	}
 }
 
+func doHandleConnCloseEvent(ctx *context.Context, c *epoll.Connection, r *reactor) {
+	log.DebugCtx(ctx, "close connection", log.Any("conn", (*c.Conn).RemoteAddr()))
+	// 关闭连接
+	err := (*c.Conn).Close()
+	if err != nil {
+		log.ErrorCtx(ctx, "close conn has err", log.Any("conn", (*c.Conn).RemoteAddr()), log.Err(err))
+	}
+	// 删除当前 reactor 保存的 conn 信息
+	err = r.epoll.Del(c)
+	if err != nil {
+		log.ErrorCtx(ctx, "epoll del conn has err", log.Any("conn", (*c.Conn).RemoteAddr()), log.Err(err))
+	}
+	// 通知 state server
+}
+
 func doHandleReadEvent(ctx *context.Context, c *epoll.Connection, r *reactor) {
 	// 设置读取超时
 	_ = (*c.Conn).SetReadDeadline(time.Now().Add(time.Duration(120) * time.Second))
 
 	// 读取对应连接中的消息包
 	m := readConnData(ctx, c, r)
-	log.DebugCtx(ctx, "gateway read msg", log.Any("data", m))
+	log.DebugCtx(ctx, "gateway read msg", log.Any("conn", (*c.Conn).RemoteAddr()), log.Any("data", m))
 	// 将读取到的数据通过 work pool 发送到 state server
 }
 
 func readConnData(ctx *context.Context, c *epoll.Connection, r *reactor) *domain.Message {
-	m, err := decoder(ctx, *c.Conn)
+	m, err := decoder(*c.Conn)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			// 如果读取数据中途连接断开，清理对应的连接信息
-			err = r.epoll.Del(c)
-			if err != nil {
-				log.ErrorCtx(ctx, "epoll del conn has err", log.Err(err))
-			}
-			err = (*c.Conn).Close()
-			if err != nil {
-				log.ErrorCtx(ctx, "close conn has err", log.Err(err))
-			}
+			doHandleConnCloseEvent(ctx, c, r)
+			return nil
 		}
+		log.ErrorCtx(ctx, "decoder conn data has err", log.Any("conn", (*c.Conn).RemoteAddr()), log.Err(err))
 		return nil
 	}
 	return m

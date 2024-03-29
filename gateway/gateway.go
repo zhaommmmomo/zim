@@ -22,7 +22,7 @@ func Start(path string) {
 	//ants.NewPool(1)
 
 	// 初始化 reactor
-	_, err = initReactor(&ln)
+	_, err = initReactorManager(&ln)
 	if err != nil {
 		panic(err)
 	}
