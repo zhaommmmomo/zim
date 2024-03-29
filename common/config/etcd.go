@@ -20,5 +20,10 @@ func GetEtcdDialTimeout() time.Duration {
 }
 
 func GetEtcdLeaseTTL() int64 {
-	return viper.GetInt64(EtcdLeaseTtl)
+	v := viper.GetInt64(EtcdLeaseTtl)
+	if v == 0 {
+		v = 5
+		SetDefault(EtcdLeaseTtl, v)
+	}
+	return v
 }

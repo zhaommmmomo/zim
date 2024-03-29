@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/zhaommmmomo/zim/common/config"
 	"github.com/zhaommmmomo/zim/common/domain"
 	"github.com/zhaommmmomo/zim/common/epoll"
@@ -12,19 +13,17 @@ import (
 	"io"
 	"net"
 	"runtime"
-	"strconv"
 	"time"
 )
 
 type reactorManager struct {
-	ln          *net.Listener
-	mainReactor *reactor
-	subReactors []*reactor
-	// 负载均衡器
+	ln       *net.Listener
+	acceptor *reactor
+	lb       loadBalancer // 负载均衡器
 }
 
 type reactor struct {
-	name string
+	idx uint8
 	// 获取连接的通道
 	connChan chan epoll.Connection
 	epoll    *epoll.Epoll
@@ -40,42 +39,40 @@ func initReactor(ln *net.Listener) (*reactorManager, error) {
 		ln: ln,
 	}
 	// 选择负载均衡器
+	m.lb = newLoadBalancer()
 
-	// 激活 sub reactors
-	m.activeSubReactors()
-	// 激活 main reactor
-	m.activeMainReactor()
+	// 激活 reactors
+	m.activeReactors()
+	// 激活 acceptor
+	m.activeAcceptor()
 	return m, nil
 }
 
-func (m *reactorManager) activeSubReactors() {
-	// 获取 sub reactor 的数量
+func (m *reactorManager) activeReactors() {
+	// 获取 reactor 的数量
 	epollNum := config.GetGatewayEpollNum()
 	if epollNum <= 0 || epollNum > MAX_EPOLL_NUM {
 		epollNum = runtime.NumCPU()
 	}
 	for i := 0; i < epollNum; i++ {
 		r := &reactor{
-			name:     "subReactor-" + strconv.Itoa(i),
 			connChan: make(chan epoll.Connection),
 			epoll:    epoll.NewEpoll(),
 		}
-		m.subReactors = append(m.subReactors, r)
-		go m.runSubReactor(r)
+		m.lb.register(r)
+		go m.runReactor(r)
 	}
 }
 
-func (m *reactorManager) activeMainReactor() {
-	// 构建 main reactor
-	m.mainReactor = &reactor{
-		name: "mainReactor",
-	}
-	go m.runMainReactor()
+func (m *reactorManager) activeAcceptor() {
+	// 构建 acceptor
+	m.acceptor = &reactor{}
+	go m.runAcceptor()
 }
 
-func (m *reactorManager) runSubReactor(r *reactor) {
-	ctx := trace.NewCustomCtxWithTraceId(r.name)
-	log.DebugCtx(ctx, "start runSubReactor...")
+func (m *reactorManager) runReactor(r *reactor) {
+	ctx := trace.NewCustomCtxWithTraceId(fmt.Sprintf("reactor-%d", r.idx))
+	log.DebugCtx(ctx, "start reactor...")
 	go func() {
 		for {
 			select {
@@ -127,30 +124,37 @@ func doHandleReadEvent(ctx *context.Context, c *epoll.Connection, r *reactor) {
 	_ = (*c.Conn).SetReadDeadline(time.Now().Add(time.Duration(120) * time.Second))
 
 	// 读取对应连接中的消息包
-	m := readConnData(ctx, c.Conn, r)
+	m := readConnData(ctx, c, r)
 	log.DebugCtx(ctx, "gateway read msg", log.Any("data", m))
 	// 将读取到的数据通过 work pool 发送到 state server
 }
 
-func readConnData(ctx *context.Context, conn *net.Conn, r *reactor) *domain.Message {
-	m, err := decoder(ctx, *conn)
+func readConnData(ctx *context.Context, c *epoll.Connection, r *reactor) *domain.Message {
+	m, err := decoder(ctx, *c.Conn)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			// 如果读取数据中途连接断开，清理对应的连接信息
-			(*conn).Close()
+			err = r.epoll.Del(c)
+			if err != nil {
+				log.ErrorCtx(ctx, "epoll del conn has err", log.Err(err))
+			}
+			err = (*c.Conn).Close()
+			if err != nil {
+				log.ErrorCtx(ctx, "close conn has err", log.Err(err))
+			}
 		}
 		return nil
 	}
 	return m
 }
 
-func (m *reactorManager) runMainReactor() {
-	ctx := trace.NewCustomCtxWithTraceId(m.mainReactor.name)
-	log.DebugCtx(ctx, "start runMainReactor...")
+func (m *reactorManager) runAcceptor() {
+	ctx := trace.NewCustomCtxWithTraceId(fmt.Sprintf("acceptor-%d", m.acceptor.idx))
+	log.DebugCtx(ctx, "start acceptor...")
 	var i = -1
 	for {
 		// 不断循环 accept 接口
-		// 如果有新的连接，将对应的连接通过负载均衡算法传递到sub reactor的连接channel中
+		// 如果有新的连接，将对应的连接通过负载均衡算法传递到reactor的连接channel中
 		conn, err := (*m.ln).Accept()
 		log.DebugCtx(ctx, "gateway accept conn", log.Any("remoteAddr", conn.RemoteAddr()))
 		// 是否限流
@@ -166,8 +170,8 @@ func (m *reactorManager) runMainReactor() {
 		if i > 1 {
 			i = 0
 		}
-		// 通知 sub reactor 有新连接建立
-		m.subReactors[i].connChan <- epoll.Connection{
+		// 通知 reactor 有新连接建立
+		m.lb.next().connChan <- epoll.Connection{
 			Conn: &conn,
 		}
 	}

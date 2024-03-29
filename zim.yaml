@@ -9,6 +9,7 @@ gateway:
     num: 2
     wait-queue:
       size: 1000
+    load-balancer: roundRobin
 etcd:
   endpoints:
     - localhost:2379

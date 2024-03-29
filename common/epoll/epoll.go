@@ -55,7 +55,7 @@ func (e *Epoll) Del(c *Connection) error {
 	if err != nil {
 		return err
 	}
-	e.Connections.Store(c.Fd, c)
+	e.Connections.Delete(c.Fd)
 	return nil
 }
 

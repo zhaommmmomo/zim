@@ -22,10 +22,6 @@ type ServiceRegister struct {
 	ctx           *context.Context
 }
 
-func init() {
-	config.SetDefault(config.EtcdLeaseTtl, 5)
-}
-
 func NewServiceRegister(ctx *context.Context, endpoint *domain.Endpoint) (*ServiceRegister, error) {
 	// 创建 etcd 客户端
 	client, err := etcdClient.New(etcdClient.Config{

@@ -6,6 +6,7 @@ const (
 	GatewayPort               = "gateway.port"
 	GatewayEpollNum           = "gateway.epoll.num"
 	GatewayEpollWaitQueueSize = "gateway.epoll.wait-queue.size"
+	GatewayEpollLoadBalancer  = "gateway.epoll.load-balancer"
 )
 
 func GetGatewayPort() int {
@@ -18,4 +19,13 @@ func GetGatewayEpollNum() int {
 
 func GetGatewayEpollWaitQueueSize() int {
 	return viper.GetInt(GatewayEpollWaitQueueSize)
+}
+
+func GetGatewayEpollLoadBalancer() string {
+	v := viper.GetString(GatewayEpollLoadBalancer)
+	if v == "" {
+		v = "roundRobin"
+		SetDefault(GatewayEpollLoadBalancer, v)
+	}
+	return v
 }
