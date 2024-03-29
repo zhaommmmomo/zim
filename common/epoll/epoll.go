@@ -10,7 +10,7 @@ import (
 
 type Epoll struct {
 	Fd          int
-	ConnCount   uint32
+	ConnCount   int32
 	Connections sync.Map
 }
 
@@ -81,12 +81,12 @@ func (e *Epoll) Wait(size, msec int) ([]*ConnectionEvent, error) {
 }
 
 func (e *Epoll) addConn(fd int, c *Connection) {
-	atomic.AddUint32(&e.ConnCount, 1)
+	atomic.AddInt32(&e.ConnCount, 1)
 	e.Connections.Store(fd, c)
 }
 
 func (e *Epoll) delConn(fd int) {
-	atomic.AddUint32(&e.ConnCount, -1)
+	atomic.AddInt32(&e.ConnCount, -1)
 	e.Connections.Delete(fd)
 }
 
