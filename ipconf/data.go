@@ -39,13 +39,14 @@ func initEndpointData() {
 func initGateways(ctx *context.Context, endpoints []*domain.Endpoint) {
 	for _, endpoint := range endpoints {
 		key := discovery.GenerateRegisterKey(endpoint)
-		state, err := convertState(&endpoint.MetaData)
+		state := State{}
+		err := utils.MapToObj(&endpoint.MetaData, &state)
 		if err != nil {
 			panic(err)
 		}
-		endpointData.EndpointMap[key] = *state
+		endpointData.EndpointMap[key] = state
 	}
-	log.Info("init gateways", zap.String("current endpoint data", utils.Marshal(endpointData)))
+	log.Debug("init gateways endpoint data", zap.String("endpoint", utils.Marshal(endpointData)))
 }
 
 func startWatch(d *discovery.ServiceDiscovery) {
@@ -71,19 +72,20 @@ func updateEndpointData(kv *mvccpb.KeyValue) {
 		log.Warn("update endpoint data unmarshal endpoint fail.", zap.String("endpoint", string(kv.Value)))
 		return
 	}
-	state, err := convertState(&endpoint.MetaData)
+	state := State{}
+	err := utils.MapToObj(&endpoint.MetaData, &state)
 	if err != nil {
 		log.Warn("update endpoint data convertState fail.", zap.String("endpoint", string(kv.Value)))
 		return
 	}
 	key := string(kv.Key)
-	endpointData.EndpointMap[string(kv.Key)] = *state
-	log.Info("update endpoint data.", zap.String("key", key), zap.String("value", utils.Marshal(endpointData)))
+	endpointData.EndpointMap[string(kv.Key)] = state
+	log.Debug("update endpoint data.", zap.String("key", key), zap.String("value", utils.Marshal(endpointData)))
 }
 
 func delEndpointData(key string) {
 	endpointData.Lock()
 	defer endpointData.Unlock()
 	delete(endpointData.EndpointMap, key)
-	log.Info("del endpoint data.", zap.String("key", key))
+	log.Debug("del endpoint data.", zap.String("key", key))
 }

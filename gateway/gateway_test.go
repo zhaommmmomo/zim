@@ -20,7 +20,7 @@ func TestGatewayConn1(t *testing.T) {
 	}
 	fmt.Println("---------connected 1---------")
 	defer conn.Close()
-	time.Sleep(time.Second * 300)
+	time.Sleep(time.Second * 30)
 }
 
 func TestGatewayConn2(t *testing.T) {
@@ -34,26 +34,32 @@ func TestGatewayConn2(t *testing.T) {
 	}
 	defer conn.Close()
 
-	// 构造消息
-	message := &domain.Message{
-		FHeader: &domain.FixedHeader{
-			V:          1,
-			Cmd:        2,
-			VarHLen:    15,
-			PayloadLen: 12,
-			Crc32sum:   0,
-		},
-		VHeader: []byte("Variable Header"),
-		Payload: []byte("Payload Data"),
-	}
+	for i := 0; i < 4; i++ {
+		if i != 3 {
+			time.Sleep(time.Second * 2)
+		}
+		vHeader := []byte(fmt.Sprintf("Variable Header %d", i))
+		payload := []byte(fmt.Sprintf("Payload Data %d", i))
+		// 构造消息
+		message := &domain.Message{
+			FHeader: &domain.FixedHeader{
+				V:          1,
+				Cmd:        2,
+				VarHLen:    uint32(len(vHeader)),
+				PayloadLen: uint32(len(payload)),
+				Crc32sum:   0,
+			},
+			VHeader: vHeader,
+			Payload: payload,
+		}
 
-	// 发送消息
-	if err := sendMessage(conn, message); err != nil {
-		fmt.Printf("Failed to send message: %s\n", err)
-		return
+		// 发送消息
+		if err := sendMessage(conn, message); err != nil {
+			fmt.Printf("Failed to send message: %s\n", err)
+			return
+		}
+		fmt.Println("Message sent successfully!")
 	}
-
-	fmt.Println("Message sent successfully!")
 	time.Sleep(time.Second * 30)
 }
 

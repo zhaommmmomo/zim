@@ -1,8 +1,6 @@
 package ipconf
 
 import (
-	"encoding/json"
-	"github.com/zhaommmmomo/zim/common/utils"
 	"math/rand"
 )
 
@@ -15,16 +13,6 @@ type State struct {
 	ConnectCount    float64 `json:"connect_count"`
 	MaxBandwidth    float64 `json:"max_bandwidth"`
 	MessageBytes    float64 `json:"message_bytes"`
-}
-
-func convertState(m *map[string]interface{}) (*State, error) {
-	bytes, err := json.Marshal(m)
-	if err != nil {
-		return nil, err
-	}
-	state := &State{}
-	err = utils.UnMarshal(bytes, state)
-	return state, err
 }
 
 // todo: 基于state信息计算对应的分数

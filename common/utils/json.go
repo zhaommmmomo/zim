@@ -13,3 +13,11 @@ func Marshal(a any) string {
 func UnMarshal(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
+
+func MapToObj(m *map[string]interface{}, a any) error {
+	bytes, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(bytes, a)
+}

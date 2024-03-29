@@ -16,14 +16,14 @@ import (
 	"time"
 )
 
-type ReactorManager struct {
+type reactorManager struct {
 	ln          *net.Listener
-	mainReactor *Reactor
-	subReactors []*Reactor
+	mainReactor *reactor
+	subReactors []*reactor
 	// 负载均衡器
 }
 
-type Reactor struct {
+type reactor struct {
 	name string
 	// 获取连接的通道
 	connChan chan epoll.Connection
@@ -34,9 +34,9 @@ const (
 	MAX_EPOLL_NUM = 100
 )
 
-func initReactor(ln *net.Listener) (*ReactorManager, error) {
+func initReactor(ln *net.Listener) (*reactorManager, error) {
 	// 初始化 reactor manager
-	m := &ReactorManager{
+	m := &reactorManager{
 		ln: ln,
 	}
 	// 选择负载均衡器
@@ -48,14 +48,14 @@ func initReactor(ln *net.Listener) (*ReactorManager, error) {
 	return m, nil
 }
 
-func (m *ReactorManager) activeSubReactors() {
+func (m *reactorManager) activeSubReactors() {
 	// 获取 sub reactor 的数量
 	epollNum := config.GetGatewayEpollNum()
 	if epollNum <= 0 || epollNum > MAX_EPOLL_NUM {
 		epollNum = runtime.NumCPU()
 	}
 	for i := 0; i < epollNum; i++ {
-		r := &Reactor{
+		r := &reactor{
 			name:     "subReactor-" + strconv.Itoa(i),
 			connChan: make(chan epoll.Connection),
 			epoll:    epoll.NewEpoll(),
@@ -65,15 +65,15 @@ func (m *ReactorManager) activeSubReactors() {
 	}
 }
 
-func (m *ReactorManager) activeMainReactor() {
+func (m *reactorManager) activeMainReactor() {
 	// 构建 main reactor
-	m.mainReactor = &Reactor{
+	m.mainReactor = &reactor{
 		name: "mainReactor",
 	}
 	go m.runMainReactor()
 }
 
-func (m *ReactorManager) runSubReactor(r *Reactor) {
+func (m *reactorManager) runSubReactor(r *reactor) {
 	ctx := trace.NewCustomCtxWithTraceId(r.name)
 	log.DebugCtx(ctx, "start runSubReactor...")
 	go func() {
@@ -110,7 +110,7 @@ func (m *ReactorManager) runSubReactor(r *Reactor) {
 	}
 }
 
-func handEvents(ctx *context.Context, events []*epoll.ConnectionEvent, r *Reactor) {
+func handEvents(ctx *context.Context, events []*epoll.ConnectionEvent, r *reactor) {
 	for _, event := range events {
 		if event.E.Events&epoll.CloseEvent != 0 {
 			// 如果是连接断开事件
@@ -122,7 +122,7 @@ func handEvents(ctx *context.Context, events []*epoll.ConnectionEvent, r *Reacto
 	}
 }
 
-func doHandleReadEvent(ctx *context.Context, c *epoll.Connection, r *Reactor) {
+func doHandleReadEvent(ctx *context.Context, c *epoll.Connection, r *reactor) {
 	// 设置读取超时
 	_ = (*c.Conn).SetReadDeadline(time.Now().Add(time.Duration(120) * time.Second))
 
@@ -132,7 +132,7 @@ func doHandleReadEvent(ctx *context.Context, c *epoll.Connection, r *Reactor) {
 	// 将读取到的数据通过 work pool 发送到 state server
 }
 
-func readConnData(ctx *context.Context, conn *net.Conn, r *Reactor) *domain.Message {
+func readConnData(ctx *context.Context, conn *net.Conn, r *reactor) *domain.Message {
 	m, err := decoder(ctx, *conn)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
@@ -144,7 +144,7 @@ func readConnData(ctx *context.Context, conn *net.Conn, r *Reactor) *domain.Mess
 	return m
 }
 
-func (m *ReactorManager) runMainReactor() {
+func (m *reactorManager) runMainReactor() {
 	ctx := trace.NewCustomCtxWithTraceId(m.mainReactor.name)
 	log.DebugCtx(ctx, "start runMainReactor...")
 	var i = -1

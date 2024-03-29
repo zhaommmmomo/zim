@@ -1,6 +1,6 @@
 env: dev
 log:
-  path: /root/zim/logs
+  path: /root/go/src/github.com/zhaommmmomo/zim/logs
 ip_conf:
   port: 8001
 gateway:
