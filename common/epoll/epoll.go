@@ -5,10 +5,12 @@ import (
 	"net"
 	"reflect"
 	"sync"
+	"sync/atomic"
 )
 
 type Epoll struct {
 	Fd          int
+	ConnCount   uint32
 	Connections sync.Map
 }
 
@@ -35,27 +37,28 @@ func NewEpoll() *Epoll {
 		panic(err)
 	}
 	return &Epoll{
-		Fd: fd,
+		Fd:          fd,
+		ConnCount:   0,
+		Connections: sync.Map{},
 	}
 }
 
 func (e *Epoll) Add(c *Connection) error {
-	fd := socketFd(c.Conn)
-	err := unix.EpollCtl(e.Fd, unix.EPOLL_CTL_ADD, fd, &unix.EpollEvent{Events: ReadEvent | CloseEvent, Fd: int32(fd)})
+	c.Fd = socketFd(c.Conn)
+	err := unix.EpollCtl(e.Fd, unix.EPOLL_CTL_ADD, c.Fd, &unix.EpollEvent{Events: ReadEvent | CloseEvent, Fd: int32(c.Fd)})
 	if err != nil {
 		return err
 	}
-	c.Fd = fd
-	e.Connections.Store(fd, c)
+	e.addConn(c.Fd, c)
 	return nil
 }
 
 func (e *Epoll) Del(c *Connection) error {
+	e.delConn(c.Fd)
 	err := unix.EpollCtl(e.Fd, unix.EPOLL_CTL_DEL, c.Fd, nil)
 	if err != nil {
 		return err
 	}
-	e.Connections.Delete(c.Fd)
 	return nil
 }
 
@@ -75,6 +78,16 @@ func (e *Epoll) Wait(size, msec int) ([]*ConnectionEvent, error) {
 		})
 	}
 	return connections, nil
+}
+
+func (e *Epoll) addConn(fd int, c *Connection) {
+	atomic.AddUint32(&e.ConnCount, 1)
+	e.Connections.Store(fd, c)
+}
+
+func (e *Epoll) delConn(fd int) {
+	atomic.AddUint32(&e.ConnCount, -1)
+	e.Connections.Delete(fd)
 }
 
 func socketFd(conn *net.Conn) int {
