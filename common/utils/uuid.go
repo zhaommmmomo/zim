@@ -1,9 +1,10 @@
 package utils
 
-import "github.com/google/uuid"
-
-var uuidGenerator = uuid.New()
+import (
+	"github.com/google/uuid"
+	"strings"
+)
 
 func NewUUID() string {
-	return uuidGenerator.String()
+	return strings.ReplaceAll(uuid.New().String(), "-", "")
 }
