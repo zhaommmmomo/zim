@@ -49,12 +49,12 @@ func (e *Epoll) Add(c *Connection) error {
 	if err != nil {
 		return err
 	}
-	e.addConn(c.Fd, c)
+	e.AddConn(c.Fd, c)
 	return nil
 }
 
 func (e *Epoll) Del(c *Connection) error {
-	e.delConn(c.Fd)
+	e.DelConn(c.Fd)
 	err := unix.EpollCtl(e.Fd, unix.EPOLL_CTL_DEL, c.Fd, nil)
 	if err != nil {
 		return err
@@ -80,14 +80,15 @@ func (e *Epoll) Wait(size, msec int) ([]*ConnectionEvent, error) {
 	return connections, nil
 }
 
-func (e *Epoll) addConn(fd int, c *Connection) {
+func (e *Epoll) AddConn(fd int, c *Connection) {
 	atomic.AddInt32(&e.ConnCount, 1)
 	e.Connections.Store(fd, c)
 }
 
-func (e *Epoll) delConn(fd int) {
-	atomic.AddInt32(&e.ConnCount, -1)
-	e.Connections.Delete(fd)
+func (e *Epoll) DelConn(fd int) {
+	if _, ok := e.Connections.LoadAndDelete(fd); ok {
+		atomic.AddInt32(&e.ConnCount, -1)
+	}
 }
 
 func socketFd(conn *net.Conn) int {

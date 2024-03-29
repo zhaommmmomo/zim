@@ -128,10 +128,7 @@ func doHandleConnCloseEvent(ctx *context.Context, c *epoll.Connection, r *reacto
 		log.ErrorCtx(ctx, "close conn has err", log.Any("conn", (*c.Conn).RemoteAddr()), log.Err(err))
 	}
 	// 删除当前 reactor 保存的 conn 信息
-	err = r.epoll.Del(c)
-	if err != nil {
-		log.ErrorCtx(ctx, "epoll del conn has err", log.Any("conn", (*c.Conn).RemoteAddr()), log.Err(err))
-	}
+	r.epoll.DelConn(c.Fd)
 	// 通知 state server
 }
 
