@@ -22,6 +22,10 @@ func String(key, value string) zap.Field {
 	return zap.String(key, value)
 }
 
+func Int(key string, value int) zap.Field {
+	return zap.Int(key, value)
+}
+
 func Any(key string, value any) zap.Field {
 	return zap.Any(key, value)
 }
