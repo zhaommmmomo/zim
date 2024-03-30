@@ -1,0 +1,20 @@
+env: dev
+log:
+  path: /root/go/src/github.com/zhaommmmomo/zim/logs
+ip_conf:
+  port: 8001
+gateway:
+  port: 8002
+  epoll:
+    num: 2
+    wait-queue:
+      size: 1000
+    load-balancer: 0
+  work-pool:
+    size: 1024
+etcd:
+  endpoints:
+    - localhost:2379
+  timeout: 5
+  lease:
+    ttl: 5
