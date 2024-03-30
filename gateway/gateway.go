@@ -18,9 +18,6 @@ func Start(path string) {
 		panic(err)
 	}
 
-	// 初始化 work pool
-	//ants.NewPool(1)
-
 	// 初始化 reactor
 	_, err = initReactorManager(&ln)
 	if err != nil {

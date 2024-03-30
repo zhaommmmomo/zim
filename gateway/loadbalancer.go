@@ -4,8 +4,10 @@ import (
 	"github.com/zhaommmmomo/zim/common/config"
 )
 
+type LoadBalance int
+
 const (
-	roundRobin = "roundRobin"
+	roundRobin LoadBalance = iota
 )
 
 type (
@@ -30,11 +32,11 @@ type (
 
 func newLoadBalancer() loadBalancer {
 	lb := config.GetGatewayEpollLoadBalancer()
-	switch lb {
+	switch LoadBalance(lb) {
 	case roundRobin:
 		return new(roundRobinLoadBalancer)
 	}
-	return nil
+	return new(roundRobinLoadBalancer)
 }
 
 func (lb *baseLoadBalancer) register(r *reactor) {

@@ -8,6 +8,7 @@ import (
 	"github.com/zhaommmmomo/zim/common/domain"
 	"github.com/zhaommmmomo/zim/common/epoll"
 	"github.com/zhaommmmomo/zim/common/log"
+	"github.com/zhaommmmomo/zim/common/pool"
 	"github.com/zhaommmmomo/zim/common/trace"
 	"golang.org/x/sys/unix"
 	"io"
@@ -20,6 +21,7 @@ type reactorManager struct {
 	ln       *net.Listener
 	acceptor *reactor
 	lb       loadBalancer // 负载均衡器
+	wp       *pool.WorkPool
 }
 
 type reactor struct {
@@ -40,7 +42,9 @@ func initReactorManager(ln *net.Listener) (*reactorManager, error) {
 	}
 	// 选择负载均衡器
 	m.lb = newLoadBalancer()
-
+	size := config.GetGatewayWorkPoolSize()
+	// 初始化 work pool
+	m.wp = pool.NewWorkPool(size)
 	// 激活 reactors
 	m.activeReactors()
 	// 激活 acceptor
@@ -159,7 +163,6 @@ func readConnData(ctx *context.Context, c *epoll.Connection, r *reactor) *domain
 func (m *reactorManager) runAcceptor() {
 	ctx := trace.NewCustomCtxWithTraceId(fmt.Sprintf("acceptor-%d", m.acceptor.idx))
 	log.DebugCtx(ctx, "start acceptor...")
-	var i = -1
 	for {
 		// 不断循环 accept 接口
 		// 如果有新的连接，将对应的连接通过负载均衡算法传递到reactor的连接channel中
@@ -174,12 +177,16 @@ func (m *reactorManager) runAcceptor() {
 			log.ErrorCtx(ctx, "gateway accept fail", log.Err(err))
 			continue
 		}
-		i++
-		if i > 1 {
-			i = 0
+		fd, err := epoll.SocketFd(&conn)
+		if fd == -1 {
+			log.ErrorCtx(ctx, "gateway accept conn fd is not found",
+				log.Any("remoteAddr", conn.RemoteAddr()), log.Err(err))
+			conn.Close()
+			continue
 		}
 		// 通知 reactor 有新连接建立
 		m.lb.next().connChan <- epoll.Connection{
+			Fd:   fd,
 			Conn: &conn,
 		}
 	}
@@ -187,4 +194,17 @@ func (m *reactorManager) runAcceptor() {
 
 func acceptLimit() bool {
 	return false
+}
+
+func (m *reactorManager) getConn(fd int) *epoll.Connection {
+	var conn *epoll.Connection
+	m.lb.iterate(func(u uint8, r *reactor) bool {
+		if v, ok := r.epoll.ConnMap.Load(fd); ok {
+			// 如果找到了对应的 conn, 结束遍历
+			conn = v.(*epoll.Connection)
+			return false
+		}
+		return true
+	})
+	return conn
 }
