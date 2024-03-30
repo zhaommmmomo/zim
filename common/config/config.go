@@ -6,10 +6,10 @@ import (
 )
 
 const (
-	ENV      = "env"
-	ENV_DEV  = "dev"
-	ENV_PROD = "prod"
-	LOG_PATH = "log.path"
+	env     = "env"
+	envDev  = "dev"
+	envProd = "prod"
+	logPath = "log.path"
 )
 
 func Init(path string) {
@@ -23,7 +23,7 @@ func Init(path string) {
 }
 
 func GetLogPath() string {
-	return viper.GetString(LOG_PATH)
+	return viper.GetString(logPath)
 }
 
 func Get(key string) string {
@@ -35,9 +35,9 @@ func SetDefault(key string, value any) {
 }
 
 func IsDebug() bool {
-	return viper.GetString(ENV) == ENV_DEV
+	return viper.GetString(env) == envDev
 }
 
 func IsProd() bool {
-	return viper.GetString(ENV) == ENV_PROD
+	return viper.GetString(env) == envProd
 }

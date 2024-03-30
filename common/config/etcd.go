@@ -6,24 +6,24 @@ import (
 )
 
 const (
-	EtcdEndpoints = "etcd.endpoints"
-	EtcdTimeout   = "etcd.timeout"
-	EtcdLeaseTtl  = "etcd.lease.ttl"
+	etcdEndpoints = "etcd.endpoints"
+	etcdTimeout   = "etcd.timeout"
+	etcdLeaseTtl  = "etcd.lease.ttl"
 )
 
 func GetEtcdEndpoints() []string {
-	return viper.GetStringSlice(EtcdEndpoints)
+	return viper.GetStringSlice(etcdEndpoints)
 }
 
 func GetEtcdDialTimeout() time.Duration {
-	return viper.GetDuration(EtcdTimeout) * time.Second
+	return viper.GetDuration(etcdTimeout) * time.Second
 }
 
 func GetEtcdLeaseTTL() int64 {
-	v := viper.GetInt64(EtcdLeaseTtl)
+	v := viper.GetInt64(etcdLeaseTtl)
 	if v == 0 {
 		v = 5
-		SetDefault(EtcdLeaseTtl, v)
+		SetDefault(etcdLeaseTtl, v)
 	}
 	return v
 }

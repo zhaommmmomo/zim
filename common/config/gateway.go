@@ -3,29 +3,29 @@ package config
 import "github.com/spf13/viper"
 
 const (
-	GatewayPort               = "gateway.port"
-	GatewayEpollNum           = "gateway.epoll.num"
-	GatewayEpollWaitQueueSize = "gateway.epoll.wait-queue.size"
-	GatewayEpollLoadBalancer  = "gateway.epoll.load-balancer"
+	gatewayPort               = "gateway.port"
+	gatewayEpollNum           = "gateway.epoll.num"
+	gatewayEpollWaitQueueSize = "gateway.epoll.wait-queue.size"
+	gatewayEpollLoadBalancer  = "gateway.epoll.load-balancer"
+	gatewayWorkPoolSize       = "gateway.work-pool.size"
 )
 
 func GetGatewayPort() int {
-	return viper.GetInt(GatewayPort)
+	return viper.GetInt(gatewayPort)
 }
 
 func GetGatewayEpollNum() int {
-	return viper.GetInt(GatewayEpollNum)
+	return viper.GetInt(gatewayEpollNum)
 }
 
 func GetGatewayEpollWaitQueueSize() int {
-	return viper.GetInt(GatewayEpollWaitQueueSize)
+	return viper.GetInt(gatewayEpollWaitQueueSize)
 }
 
-func GetGatewayEpollLoadBalancer() string {
-	v := viper.GetString(GatewayEpollLoadBalancer)
-	if v == "" {
-		v = "roundRobin"
-		SetDefault(GatewayEpollLoadBalancer, v)
-	}
-	return v
+func GetGatewayEpollLoadBalancer() int {
+	return viper.GetInt(gatewayEpollLoadBalancer)
+}
+
+func GetGatewayWorkPoolSize() int {
+	return viper.GetInt(gatewayWorkPoolSize)
 }
