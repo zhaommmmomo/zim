@@ -1,6 +1,7 @@
 package epoll
 
 import (
+	"fmt"
 	"golang.org/x/sys/unix"
 	"net"
 	"reflect"
@@ -9,9 +10,9 @@ import (
 )
 
 type Epoll struct {
-	Fd          int
-	ConnCount   int32
-	Connections sync.Map
+	Fd        int
+	ConnCount int32
+	ConnMap   sync.Map
 }
 
 type Connection struct {
@@ -37,14 +38,13 @@ func NewEpoll() *Epoll {
 		panic(err)
 	}
 	return &Epoll{
-		Fd:          fd,
-		ConnCount:   0,
-		Connections: sync.Map{},
+		Fd:        fd,
+		ConnCount: 0,
+		ConnMap:   sync.Map{},
 	}
 }
 
 func (e *Epoll) Add(c *Connection) error {
-	c.Fd = socketFd(c.Conn)
 	err := unix.EpollCtl(e.Fd, unix.EPOLL_CTL_ADD, c.Fd, &unix.EpollEvent{Events: ReadEvent | CloseEvent, Fd: int32(c.Fd)})
 	if err != nil {
 		return err
@@ -68,32 +68,35 @@ func (e *Epoll) Wait(size, msec int) ([]*ConnectionEvent, error) {
 	if err != nil {
 		return nil, err
 	}
-	var connections []*ConnectionEvent
+	var connMap []*ConnectionEvent
 	for i := 0; i < n; i++ {
 		event := events[i]
-		conn, _ := e.Connections.Load(int(event.Fd))
-		connections = append(connections, &ConnectionEvent{
+		conn, _ := e.ConnMap.Load(int(event.Fd))
+		connMap = append(connMap, &ConnectionEvent{
 			E: &event,
 			C: conn.(*Connection),
 		})
 	}
-	return connections, nil
+	return connMap, nil
 }
 
 func (e *Epoll) AddConn(fd int, c *Connection) {
 	atomic.AddInt32(&e.ConnCount, 1)
-	e.Connections.Store(fd, c)
+	e.ConnMap.Store(fd, c)
 }
 
 func (e *Epoll) DelConn(fd int) {
-	if _, ok := e.Connections.LoadAndDelete(fd); ok {
+	if _, ok := e.ConnMap.LoadAndDelete(fd); ok {
 		atomic.AddInt32(&e.ConnCount, -1)
 	}
 }
 
-func socketFd(conn *net.Conn) int {
+func SocketFd(conn *net.Conn) (int, error) {
+	if _, ok := (*conn).(*net.TCPConn); !ok {
+		return -1, fmt.Errorf("udp connection is not supported. conn=%v", *conn)
+	}
 	tcpConn := reflect.Indirect(reflect.ValueOf(*conn)).FieldByName("conn")
 	fdVal := tcpConn.FieldByName("fd")
 	pfdVal := reflect.Indirect(fdVal).FieldByName("pfd")
-	return int(pfdVal.FieldByName("Sysfd").Int())
+	return int(pfdVal.FieldByName("Sysfd").Int()), nil
 }
